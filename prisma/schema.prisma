@@ -1,0 +1,208 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                   String                 @id @default(uuid())
+  email                String                 @unique @db.VarChar(100)
+  password             String                 @db.VarChar(250)
+  firstName            String                 @db.VarChar(100)
+  lastName             String                 @db.VarChar(100)
+  hiredAt              DateTime               @db.Date()
+  status               StatusEnum             @default(NOT_CONFIRMED)
+  isConnected          Boolean                @default(false)
+  //isAvailable          Boolean                @default(false)
+  isActive             Boolean                @default(false)
+  avatarUrl            String?                @db.VarChar(200)
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
+  role                 RoleEnum
+  alerts               Alert[]
+  conversations        Conversation[]
+  userIsInConversation UserIsInConversation[]
+  messages             Message[]
+  readMessages         ReadMessages[]
+  readAlerts           ReadAlerts[]
+  assignedLines        AssignedLine[]
+  tokens               Token[]
+  trainTravel          TrainTravel[] 
+}
+
+enum RoleEnum {
+  SUPERVISOR
+  COORDINATOR
+  DRIVER
+}
+
+enum StatusEnum {
+  NOT_CONFIRMED
+  CONFIRMED
+  NOT_EMPLOYED // deactivate reset password
+}
+
+// @dev voir pour le multiplatforme
+model Token {
+  sessionId String?        @unique
+  token     String        @id
+  type      TokenTypeEnum
+  userId    String
+  user      User          @relation(fields: [userId], references: [id])
+  createdAt DateTime      @default(now())
+  expiresAt DateTime?
+
+  @@index([type, userId])
+}
+
+enum TokenTypeEnum {
+  REFRESH_TOKEN
+  RESET_PASSWORD
+}
+
+model UserIsInConversation {
+  conversationId Int          @db.UnsignedInt()
+  conversation   Conversation @relation(fields: [conversationId], references: [id])
+  userId         String
+  user           User         @relation(fields: [userId], references: [id])
+  isHidden       Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt()
+
+  @@id([userId, conversationId])
+}
+
+model Conversation {
+  id                   Int                    @id @default(autoincrement()) @db.UnsignedInt()
+  name                 String                 @db.VarChar(100)
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt()
+  userId               String
+  user                 User                   @relation(fields: [userId], references: [id])
+  userIsInConversation UserIsInConversation[]
+  message              Message[]
+}
+
+model Message {
+  id             Int            @id @default(autoincrement()) @db.UnsignedInt()
+  content        String?        @db.Text
+  fileUrl        String?        @db.VarChar(250)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt()
+  conversationId Int            @db.UnsignedInt()
+  conversation   Conversation   @relation(fields: [conversationId], references: [id])
+  userId         String
+  user           User           @relation(fields: [userId], references: [id])
+  readMessages   ReadMessages[]
+}
+
+model ReadMessages {
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  messageId Int      @db.UnsignedInt()
+  message   Message  @relation(fields: [messageId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@id([userId, messageId])
+}
+
+model Alert {
+  id         Int          @id @default(autoincrement()) @db.UnsignedInt()
+  content    String       @db.Text
+  priority   Priority
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+  userId     String
+  user       User         @relation(fields: [userId], references: [id])
+  readAlerts ReadAlerts[]
+  lineAlert  LineAlert[]
+}
+
+enum Priority {
+  URGENT
+  MEDIUM
+  SOFT
+}
+
+model ReadAlerts {
+  userId  String
+  user    User     @relation(fields: [userId], references: [id])
+  alertId Int      @db.UnsignedInt()
+  alert   Alert    @relation(fields: [alertId], references: [id])
+  date    DateTime @default(now())
+
+  @@id([userId, alertId])
+}
+
+model Line {
+  id            Int            @id @default(autoincrement()) @db.UnsignedInt()
+  name          String         @unique @db.VarChar(45)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  lineAlerts    LineAlert[]
+  assignedlines AssignedLine[]
+  travels        Travel[]
+}
+
+model AssignedLine {
+  lineId              Int       @db.UnsignedInt()
+  line                Line      @relation(fields: [lineId], references: [id])
+  userId              String
+  user                User      @relation(fields: [userId], references: [id])
+  assignmentStartDate DateTime
+  assignmentEndDate   DateTime?
+  createdAt           DateTime  @default(now())
+
+  @@id([lineId, userId])
+}
+
+model LineAlert {
+  lineId  Int   @db.UnsignedInt()
+  Line    Line  @relation(fields: [lineId], references: [id])
+  alertId Int   @db.UnsignedInt()
+  alert   Alert @relation(fields: [alertId], references: [id])
+
+  @@id([lineId, alertId])
+}
+
+model Train {
+  id             Int             @id @default(autoincrement()) @db.UnsignedInt()
+  name           String          @unique @db.VarChar(45)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  trainTravel    TrainTravel[]
+}
+
+
+
+model Travel {
+  id           Int           @id @default(autoincrement()) @db.UnsignedInt()
+  stationOne   String        @db.VarChar(100)
+  stationTwo   String        @db.VarChar(100)
+  duration     Int           @db.UnsignedInt()
+  lineId       Int           @db.UnsignedInt()
+  line         Line          @relation(fields: [lineId], references: [id])
+  trainTravels TrainTravel[]
+
+}
+
+model TrainTravel {
+  id        Int      @id @default(autoincrement())
+  trainId   Int      @db.UnsignedInt()
+  train     Train    @relation(fields: [trainId], references: [id])
+  travelId  Int      @db.UnsignedInt()
+  travel    Travel   @relation(fields: [travelId], references: [id])
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  startTime DateTime
+  endTime   DateTime?
+}
