@@ -11,8 +11,8 @@ import { TokenService } from "src/auth/token.service";
         port: 587,
         secure: false,
         auth: {
-          user: "962c58002@smtp-brevo.com",
-          pass: "bxZV9kESv0JUTC5j",
+          user: "process.env.USER",
+          pass: "process.env.PASS",
         },
         // @dev controler avec formateur l'erreur de certificat: "self-signed certificate in certificate chain"
         tls: {
